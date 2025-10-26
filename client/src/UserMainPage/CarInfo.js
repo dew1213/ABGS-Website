@@ -52,12 +52,12 @@ const CarInfo = () => {
                           <div className="flex items-center justify-center">
                             <span
                               className={`ml-2 text-xs font-medium ${
-                                car.status === 1
+                                car.status === "1"
                                   ? "text-green-600"
                                   : "text-gray-600"
                               }`}
                             >
-                              {car.status === 1
+                              {car.status === "1"
                                 ? "สามารถเข้าใช้งานได้"
                                 : "ไม่สามารถเข้าใช้งานได้"}
                             </span>

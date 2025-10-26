@@ -419,7 +419,46 @@ app.post("/Car/SaveChange", async (req, res) => {
       .json({ message: "Error fetching user data", error: error.message });
   }
 });
+app.post("/users/updatebyuser", async (req, res) => {
+  const { uid, name, surname, telephone } = req.body || {};
 
+  if (!uid) {
+    return res.status(400).json({ status: "failed", message: "UID is required." });
+  }
+
+  try {
+    // สมมติว่าใช้ Firestore collection "users"
+    const userRef = admin.firestore().collection("users").doc(uid);
+
+    // ตรวจสอบว่ามี doc ไหม
+    const doc = await userRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({
+        status: "failed",
+        message: "User not found.",
+      });
+    }
+
+
+    await userRef.update({
+      name: name,
+      surname: surname,
+      telephone: telephone,
+      updatedAt:new Date(),
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "User profile updated successfully.",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      status: "failed",
+      message: "Error updating user profile.",
+    });
+  }
+});
 app.listen(port, (req, res) => {
   console.log("http server run at " + port);
 });
