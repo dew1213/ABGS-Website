@@ -14,11 +14,16 @@ admin.initializeApp({
 });
 const db = admin.firestore();
 
+const allowedOrigins = [
+  "https://websitebackcarproject.vercel.app",
+  "https://test1-khaki-two-95.vercel.app",
+  "http://localhost:1000"
+];
 app.use(cors(
   {
-    origin: "https://websitebackcarproject.vercel.app", // เปลี่ยนเป็นโดเมน frontend ของคุณ
+    origin: allowedOrigins ,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true // ถ้าใช้ cookie / authentication
+    credentials: true 
 
   }
 ));
