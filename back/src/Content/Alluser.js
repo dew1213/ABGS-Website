@@ -12,11 +12,19 @@ const Alluser = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [warning, setWarning] = useState(null);
   const [showModal, setShowModal] = useState(false);
-const navigate = useNavigate();
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedDeleteUser, setSelectedDeleteUser] = useState(null);
+  const navigate = useNavigate();
   const handleEditClick = (user) => {
     setSelectedUser(user);
     setShowModal(true);
   };
+  const handleDeleteClick = (user) => {
+  setSelectedDeleteUser(user);
+  setShowDeleteModal(true);
+};
+
   const handleOnClickSave = async () => {
     console.log("ส่งข้อมูล:", selectedUser);
     try {
@@ -36,6 +44,22 @@ const navigate = useNavigate();
       console.error("Error fetching user data from server: ", error);
     }
   };
+
+  const confirmDelete = async () => {
+  if (!selectedDeleteUser?.uid) return;
+
+  try {
+    await axios.post(`${config.apiBaseUrl}/User/deleteuser`, {
+      selectedUser: { uid: selectedDeleteUser.uid },
+    });
+    setShowDeleteModal(false);
+    navigate(0); // รีเฟรชหน้า
+  } catch (error) {
+    console.error("Error deleting user:", error);
+  }
+};
+
+
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const sortedUsers = [...Alluser2].sort((a, b) => {
@@ -106,7 +130,7 @@ const navigate = useNavigate();
                       วันที่สร้าง
                     </th>
                     <th className="px-6 py-3 text-center text-sm font-medium border-b">
-                      แก้ไข
+                      การดำเนินการ
                     </th>
                   </tr>
                 </thead>
@@ -137,12 +161,20 @@ const navigate = useNavigate();
                           : "-"}
                       </td>
                       <td className="px-6 py-3 border-b text-center">
-                        <button
-                          onClick={() => handleEditClick(user)}
-                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                        >
-                          แก้ไข
-                        </button>
+                        <div className="flex justify-center space-x-2">
+                          <button
+                            onClick={() => handleEditClick(user)}
+                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                          >
+                            แก้ไข
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(user)}
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                          >
+                            ลบ
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -265,6 +297,32 @@ const navigate = useNavigate();
           </div>
         </div>
       )}
+            {showDeleteModal && selectedDeleteUser && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-[90%] max-w-sm">
+            <h2 className="text-lg font-bold mb-4 text-red-600">ยืนยันการลบ</h2>
+            <p className="mb-4 text-gray-700">
+              คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้{" "}
+              <span className="font-semibold">{selectedDeleteUser.name}</span> ?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                ลบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

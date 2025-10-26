@@ -15,11 +15,12 @@ const LoginPage = ({ onLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); // ✅ เริ่มโหลด
+    setLoading(true);
 
     try {
       if (!email || !password) {
-        throw new Error("Please fill in all fields.");
+        setError("กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน");
+        return;
       }
 
       const response = await axios.post(`${config.apiBaseUrl}/users/login`, {
@@ -27,19 +28,31 @@ const LoginPage = ({ onLogin }) => {
         password,
       });
 
-      if (response.data.status === "success") {
-        await updateUserWithToken(response.data.token);
+      const { status, message, token } = response.data;
+
+      if (status === "success") {
+        await updateUserWithToken(token);
         navigate("/home");
       } else {
-        throw new Error(response.data.message || "Login failed.");
+        // ✅ แสดงข้อความจาก backend โดยตรง
+        setError(message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       }
     } catch (err) {
-      console.error(err.message);
-      setError(err.message);
+      console.error("Login error:", err);
+
+      // ✅ รองรับกรณีเกิด error จาก axios (เช่น ไม่มีการตอบกลับจาก server)
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.message === "Network Error") {
+        setError("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+      } else {
+        setError("เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง");
+      }
     } finally {
-      setLoading(false); // ✅ โหลดเสร็จ กลับสู่ปกติ
+      setLoading(false);
     }
   };
+
 
   return (
     <div className="flex h-screen bg-gradient-to-r from-blue to-white w-full">
@@ -65,8 +78,11 @@ const LoginPage = ({ onLogin }) => {
           </p>
 
           {error && (
-            <p className="text-red-500 mb-4 text-center text-sm">{error}</p>
+            <p className="text-red-600 font-semibold mb-4 text-center text-sm">
+              {error}
+            </p>
           )}
+
 
           <form onSubmit={handleSubmit}>
             <div className="block text-gray-700 text-xs font-semibold mb-2">

@@ -17,7 +17,8 @@ const db = admin.firestore();
 const allowedOrigins = [
   "https://websitebackcarproject.vercel.app",
   "https://test1-khaki-two-95.vercel.app",
-  "http://localhost:1000"
+  "http://localhost:1000",
+  "http://localhost:2000"
 ];
 app.use(cors(
   {
@@ -67,7 +68,10 @@ app.get("/users/profile", checkAuth, async (req, res) => {
 app.get("/users/profile/mycar", checkAuth, async (req, res) => {
   try {
     const MyCarRef = db.collection("carsRequest");
-    const snapshot = await MyCarRef.where("userId", "==", req.uid).get();
+    const snapshot = await MyCarRef
+      .where("userId", "==", req.uid)
+      .where("isdelete", "in", ["0", null])
+      .get();
 
     if (snapshot.empty) {
       return res.status(404).json({ message: "car not found" });
@@ -124,6 +128,7 @@ app.post("/users/register", async (req, res) => {
           role: "user",
           password: password,
           telephone: telephone,
+          isdelete:"0",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
@@ -167,6 +172,17 @@ app.post("/users/login", async (req, res) => {
       if (!checkpass.exists) {
         return res.status(404).json({ message: "User not found" });
       }
+
+       const userData = checkpass.data();
+
+      // ✅ ตรวจสอบสถานะ isdelete
+      if (userData.isdelete === "1") {
+        return res.status(403).json({
+          status: "403",
+          message: "บัญชีนี้ถูกระงับหรือถูกลบแล้ว ไม่สามารถเข้าสู่ระบบได้",
+        });
+      }
+
       const pass = checkpass.data().password;
       const token = await admin.auth().createCustomToken(userRecord.uid);
       if (pass == password) {
@@ -218,7 +234,7 @@ app.post("/admin/login", async (req, res) => {
       }
       const pass = doc.data().password;
       const userData = doc.data();
-      if (userData.role == "admin") {
+      if (userData.role == "admin" && userData.isdelete != "1") {
         if (pass == password) {
           return res.status(200).json({
             status: "success",
@@ -280,7 +296,8 @@ app.post("/users/signInCar", async (req, res) => {
         color: color,
         licensePlate: licensePlate,
         userId: userId,
-        status: 0,
+        status: "0",
+        isdelete:"0",
         dateExpire: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       },
@@ -347,7 +364,13 @@ app.get("/get/allUsers", async (req, res) => {
       return res.status(404).json({ message: "No users found" });
     }
 
-    const usersList = snapshot.docs.map((doc) => doc.data());
+    const usersList = snapshot.docs
+      .map((doc) => doc.data())
+      .filter((user) => user.isdelete !== "1");
+
+    if (usersList.length === 0) {
+      return res.status(404).json({ message: "No active users found" });
+    }
 
     res.status(200).json({ status: "success", data: usersList });
   } catch (error) {
@@ -360,7 +383,9 @@ app.get("/get/allUsers", async (req, res) => {
 app.get("/get/allCars", async (req, res) => {
   try {
     const GetAllUser = db.collection("carsRequest");
-    const snapshot = await GetAllUser.get();
+    const snapshot = await GetAllUser
+      .where("isdelete", "in", ["0", null]) // เลือกเฉพาะที่ยังไม่ถูกลบ
+      .get();
     console.log(snapshot);
 
     if (snapshot.empty) {
@@ -413,6 +438,15 @@ app.post("/Car/SaveChange", async (req, res) => {
       return res.status(400).json({ status: "400", message: "UID ไม่ถูกต้อง" });
     }
     const userRef = db.collection("carsRequest").doc(docid);
+
+    const doc = await userRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({
+        status: "failed",
+        message: "User not found.",
+      });
+    }
+
     await userRef.update({
       docid,
       userId,
@@ -472,6 +506,77 @@ app.post("/users/updatebyuser", async (req, res) => {
     });
   }
 });
+app.post("/Car/deletecar", async (req, res) => {
+  try {
+    const { userId, licensePlate, brand, color, dateExpire, province, status ,docid} =
+      req.body.selectedCar || "";
+    if (!userId) {
+      return res.status(400).json({ status: "400", message: "UID ไม่ถูกต้อง" });
+    }
+    const carRef = db.collection("carsRequest").doc(docid);
+    const doc = await carRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ status: "404", message: "ไม่พบข้อมูลรถในระบบ" });
+    }
+
+    await carRef.update({
+      isdelete: "1",
+      updatedAt:new Date(),
+    });
+    
+    res.status(200).json({ status: "200", message: "อัปเดตข้อมูลสำเร็จ" });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "Error fetching user data", error: error.message });
+  }
+});
+
+app.post("/User/deleteuser", async (req, res) => {
+  try {
+    const { uid } = req.body.selectedUser || {};
+
+    if (!uid) {
+      return res.status(400).json({ status: "400", message: "ไม่พบ UID ผู้ใช้" });
+    }
+
+    const userRef = db.collection("users").doc(uid);
+    const doc = await userRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ status: "404", message: "ไม่พบข้อมูลผู้ใช้" });
+    }
+
+     await userRef.update({
+      isdelete: "1",
+      updatedAt:new Date(),
+    });
+
+    const carsSnapshot = await db.collection("carsRequest").where("userId", "==", uid).get();
+
+    if (!carsSnapshot.empty) {
+      const batch = db.batch();
+
+      carsSnapshot.forEach((doc) => {
+        const carRef = db.collection("carsRequest").doc(doc.id);
+        batch.update(carRef, { isdelete: "1",status: "0" , updatedAt: new Date() });
+      });
+
+      await batch.commit(); // ✅ commit batch
+    }
+
+    res.status(200).json({ status: "200", message: "ลบผู้ใช้สำเร็จ" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: "500",
+      message: "เกิดข้อผิดพลาดในการลบข้อมูลผู้ใช้",
+      error: error.message,
+    });
+  }
+});
+
 app.listen(port, (req, res) => {
   console.log("http server run at " + port);
 });

@@ -11,31 +11,46 @@ const Allcar = () => {
   const [selectedCar, setSelectedCar] = useState(null);
   const [warning, setWarning] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
  const navigate = useNavigate();
   const handleEditClick = (car) => {
     setSelectedCar(car);
     setShowModal(true);
   };
 
+
+
   const handleOnClickSave = async () => {
     console.log("ส่งข้อมูล:", selectedCar);
     try {
-      try {
-        const response = await axios.post(
-          `${config.apiBaseUrl}/Car/SaveChange`,
-          {
-            selectedCar,
-          }
-        );
-        setShowModal(false);
-        navigate(0); 
-      } catch (error) {
-        setWarning("Please re-check your fields.");
-      }
+      const response = await axios.post(
+        `${config.apiBaseUrl}/Car/SaveChange`,
+        { selectedCar }
+      );
+      setShowModal(false);
+      navigate(0); 
     } catch (error) {
-      console.error("Error fetching user data from server: ", error);
+      setWarning("Please re-check your fields.");
+      console.error(error);
     }
   };
+
+
+  const handleDeleteClick = async (car) => {
+    console.log("ส่งข้อมูล:", car);
+    try {
+      const response = await axios.post(
+        `${config.apiBaseUrl}/Car/deletecar`,
+        { selectedCar: car } // ส่ง car ตรง ๆ
+      );
+      navigate(0); 
+    } catch (error) {
+      setWarning("Please re-check your fields.");
+      console.error("Error deleting car:", error);
+    }
+  };
+
+
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const sortedUsers = [...Allcar2].sort((a, b) => {
@@ -112,7 +127,7 @@ const Allcar = () => {
                       วันที่สร้าง
                     </th>
                     <th className="px-6 py-3 text-center text-sm font-medium border-b">
-                      แก้ไข
+                      การดำเนินการ
                     </th>
                   </tr>
                 </thead>
@@ -139,7 +154,7 @@ const Allcar = () => {
                           : "-"}
                       </td> */}
                       <td className="px-6 py-3 border-b capitalize">
-                        {car.status === 0
+                        {car.status === "0"
                           ? "ไม่สามารถใช้งานได้"
                           : "สามารถใช้งานได้"}
                       </td>
@@ -151,13 +166,22 @@ const Allcar = () => {
                           : "-"}
                       </td>
                       <td className="px-6 py-3 border-b text-center">
-                        <button
-                          onClick={() => handleEditClick(car)}
-                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                        >
-                          แก้ไข
-                        </button>
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => handleEditClick(car)}
+                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                          >
+                            แก้ไข
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteModal(car)}
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                          >
+                            ลบ
+                          </button>
+                        </div>
                       </td>
+
                     </tr>
                   ))}
                 </tbody>
@@ -302,6 +326,29 @@ const Allcar = () => {
           </div>
         </div>
       )}
+      {showDeleteModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-[90%] max-w-md">
+            <h2 className="text-xl font-bold mb-4">ยืนยันการลบ</h2>
+            <p className="mb-6">คุณแน่ใจหรือไม่ว่าต้องการลบรถ {showDeleteModal.licensePlate}?</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(null)}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => { handleDeleteClick(showDeleteModal); setShowDeleteModal(null); }}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                ลบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
