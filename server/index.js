@@ -8,12 +8,20 @@ const port = 8000;
 
 var admin = require("firebase-admin");
 var serviceAccount = require("./serviceAccountKey.json");
+// const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_KEY);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 const db = admin.firestore();
 
-app.use(cors());
+app.use(cors(
+  {
+    origin: "https://websitebackcarproject.vercel.app", // เปลี่ยนเป็นโดเมน frontend ของคุณ
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true // ถ้าใช้ cookie / authentication
+
+  }
+));
 app.use(express.json());
 // app.use(bodyParser.json());
 
