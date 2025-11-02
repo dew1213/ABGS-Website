@@ -132,7 +132,7 @@ const handleChange2 = (e) => {
     e.preventDefault();
     try {
       if (isFormEmpty()) {
-        throw new Error("please fill in all fields.");
+        throw new Error("Please fill in all fields.");
       }
 
       console.log(formData);
@@ -144,8 +144,11 @@ const handleChange2 = (e) => {
       );
       if (response.data.status === "success") {
         navigate("/");
-      } else {
-        throw new Error("Please re-check your fields.");
+      } else if (response.data.status === "duplicate") {
+      // ถ้าทะเบียนซ้ำ แสดงข้อความ error ให้ user เห็น
+      setError("This license plate already exists.");
+      }else {
+        throw new Error(response.data.status);
       }
     } catch (err) {
       setError(err.message);

@@ -287,6 +287,19 @@ app.post("/users/signInCar", async (req, res) => {
         message: "Please fill in all fields.",
       });
     }
+     const existingCar = await db
+      .collection("carsRequest")
+      .where("licensePlate", "==", licensePlate)
+      .where("isdelete", "==", "0")
+      .get();
+
+    if (!existingCar.empty) {
+      // ถ้ามีข้อมูลซ้ำ
+      return res.status(200).json({
+        status: "duplicate",
+        message: "This license plate already exists.",
+      });
+    }
 
     // เพิ่มข้อมูลลง Firestore โดยใช้ uid เป็น document ID // merge: true เพื่อไม่ลบข้อมูลที่มีอยู่แล้ว
     await db.collection("carsRequest").doc().set(
@@ -578,5 +591,5 @@ app.post("/User/deleteuser", async (req, res) => {
 });
 
 app.listen(port, (req, res) => {
-  console.log("http server run at " + port);
+  console.log("http server run at http://localhost:" + port);
 });
