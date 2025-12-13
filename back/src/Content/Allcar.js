@@ -76,7 +76,7 @@ const Allcar = () => {
       <Navbar />
       <div className="p-4 overflow-x-auto">
         <h1 className="text-3xl text-center font-bold mb-6 text-gray-800">
-          รายชื่อผู้ใช้ทั้งหมด
+          รายชื่อรถทั้งหมด
         </h1>
         {Allcar2 ? (
           Allcar2.length > 0 ? (

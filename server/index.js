@@ -590,6 +590,258 @@ app.post("/User/deleteuser", async (req, res) => {
   }
 });
 
+
+app.post("/cars/insertcar", async (req, res) => {
+  let {
+    province,
+    brand,
+    color,
+    licensePlate,
+    status
+  } = req.body.formData || {};
+
+  try {
+    // 🔽 normalize + toLowerCase
+    province = province?.toString().trim().toLowerCase();
+    brand = brand?.toString().trim().toLowerCase();
+    color = color?.toString().trim().toLowerCase();
+    licensePlate = licensePlate?.toString().trim().toLowerCase();
+    status = status?.toString().trim().toLowerCase();
+
+    // validate
+    if (!(province && brand && color && licensePlate && status)) {
+      return res.status(200).json({
+        status: "400",
+        message: "Please fill in all fields.",
+      });
+    }
+
+    // check duplicate (ใช้ lowercase แล้ว)
+    const existingCar = await db
+      .collection("cars")
+      .where("licensePlate", "==", licensePlate)
+      .where("isdelete", "==", "0")
+      .get();
+
+    if (!existingCar.empty) {
+      return res.status(200).json({
+        status: "duplicate",
+        message: "This license plate already exists.",
+      });
+    }
+
+    const carRef = db.collection("cars").doc();
+    await carRef.set({
+      cid: carRef.id,
+      brand,
+      color,
+      licensePlate,
+      province,
+      status,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      isdelete: "0",
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "create car success",
+      cid: carRef.id,
+    });
+
+  } catch (error) {
+    console.error("Error saving car data: ", error);
+    return res.status(500).json({
+      status: "failed",
+      error: error.message,
+    });
+  }
+});
+
+
+app.post("/cars/multlinsertcar", async (req, res) => {
+  const formData = req.body.formData;
+
+  if (!Array.isArray(formData) || formData.length === 0) {
+    return res.status(400).json({
+      status: "400",
+      message: "formData must be a non-empty array",
+    });
+  }
+
+  const success = [];
+  const duplicate = [];
+  const failed = [];
+
+  try {
+    for (const item of formData) {
+      let { province, brand, color, licensePlate, status } = item;
+
+      // 🔽 แปลงเป็น lowercase + trim
+      province = province?.toString().trim().toLowerCase();
+      brand = brand?.toString().trim().toLowerCase();
+      color = color?.toString().trim().toLowerCase();
+      licensePlate = licensePlate?.toString().trim().toLowerCase();
+      status = status?.toString().trim().toLowerCase();
+
+      // validate
+      if (!(province && brand && color && licensePlate && status)) {
+        failed.push({
+          licensePlate,
+          reason: "missing field",
+        });
+        continue;
+      }
+
+      // check duplicate (ใช้ licensePlate ที่เป็น lowercase แล้ว)
+      const existingCar = await db
+        .collection("cars")
+        .where("licensePlate", "==", licensePlate)
+        .where("isdelete", "==", "0")
+        .get();
+
+      if (!existingCar.empty) {
+        duplicate.push(licensePlate);
+        continue;
+      }
+
+      const carRef = db.collection("cars").doc();
+      await carRef.set({
+        cid: carRef.id,
+        brand,
+        color,
+        licensePlate,
+        province,
+        status,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        isdelete: "0",
+      });
+
+      success.push({
+        cid: carRef.id,
+        licensePlate,
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      summary: {
+        total: formData.length,
+        success: success.length,
+        duplicate: duplicate.length,
+        failed: failed.length,
+      },
+      success,
+      duplicate,
+      failed,
+    });
+
+  } catch (error) {
+    console.error("Error saving car data: ", error);
+    return res.status(500).json({
+      status: "failed",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/cars/count", async (req, res) => {
+  try {
+    const snapshot = await db
+      .collection("cars")
+      .where("isdelete", "==", "0")
+      .get();
+
+    return res.status(200).json({
+      status: "success",
+      total: snapshot.size, // 👈 จำนวน document
+    });
+
+  } catch (error) {
+    console.error("Error counting cars: ", error);
+    return res.status(500).json({
+      status: "failed",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/historycars/insert", async (req, res) => {
+  let {
+    brand,
+    color,
+    licensePlate,
+    province
+  } = req.body.formData || {};
+
+  try {
+    // 🔽 normalize + toLowerCase
+    brand = brand?.toString().trim().toLowerCase();
+    color = color?.toString().trim().toLowerCase();
+    licensePlate = licensePlate?.toString().trim().toLowerCase();
+    province = province?.toString().trim().toLowerCase();
+
+    // validate
+    if (!(brand && color && licensePlate && province)) {
+      return res.status(400).json({
+        status: "400",
+        message: "Please fill in all fields",
+      });
+    }
+
+    // 🔍 check licensePlate in cars
+    const carSnapshot = await db
+      .collection("cars")
+      .where("licensePlate", "==", licensePlate)
+      .where("isdelete", "==", "0")
+      .limit(1)
+      .get();
+
+    let cid = "";
+    let isregister = 0;
+
+    if (!carSnapshot.empty) {
+      const carData = carSnapshot.docs[0].data();
+      cid = carData.cid || "";
+      isregister = 1;
+    }
+
+    // ➕ insert to historycars
+    const historyRef = db.collection("historycars").doc();
+
+    await historyRef.set({
+      hid: historyRef.id,
+      datetimeuse: admin.firestore.FieldValue.serverTimestamp(),
+      brand,
+      color,
+      licensePlate,
+      province,
+      isregister,
+      cid
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "insert history car success",
+      data: {
+        hid: historyRef.id,
+        licensePlate,
+        isregister,
+        cid
+      }
+    });
+
+  } catch (error) {
+    console.error("Error insert historycars: ", error);
+    return res.status(500).json({
+      status: "failed",
+      error: error.message,
+    });
+  }
+});
+
+
 app.listen(port, (req, res) => {
   console.log("http server run at http://localhost:" + port);
 });
