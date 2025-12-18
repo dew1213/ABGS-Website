@@ -590,7 +590,7 @@ app.post("/User/deleteuser", async (req, res) => {
   }
 });
 
-
+//add single car
 app.post("/cars/insertcar", async (req, res) => {
   let {
     province,
@@ -658,7 +658,7 @@ app.post("/cars/insertcar", async (req, res) => {
   }
 });
 
-
+//ad multi car
 app.post("/cars/multlinsertcar", async (req, res) => {
   const formData = req.body.formData;
 
@@ -746,6 +746,7 @@ app.post("/cars/multlinsertcar", async (req, res) => {
   }
 });
 
+//countcar
 app.get("/cars/count", async (req, res) => {
   try {
     const snapshot = await db
@@ -767,6 +768,7 @@ app.get("/cars/count", async (req, res) => {
   }
 });
 
+//add history
 app.post("/historycars/insert", async (req, res) => {
   let {
     brand,
@@ -800,11 +802,12 @@ app.post("/historycars/insert", async (req, res) => {
 
     let cid = "";
     let isregister = 0;
-
+    let statuscar = "general";
     if (!carSnapshot.empty) {
       const carData = carSnapshot.docs[0].data();
       cid = carData.cid || "";
       isregister = 1;
+      statuscar = carData.status || "";
     }
 
     // ➕ insert to historycars
@@ -828,6 +831,7 @@ app.post("/historycars/insert", async (req, res) => {
         hid: historyRef.id,
         licensePlate,
         isregister,
+        statuscar,
         cid
       }
     });
